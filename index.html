@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HealthySwap - AI Food Alternative Finder</title>
+    <script src="https://unpkg.com/@tensorflow/tfjs"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet"></script>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #f0f9ff;
+        }
+        .gradient-bg {
+            background: linear-gradient(135deg, #48a9e6 0%, #0087c7 100%);
+        }
+        .card-hover:hover {
+            transform: translateY(-5px);
+            transition: all 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    <div class="min-h-screen">
+        <!-- Header -->
+        <header class="gradient-bg p-4 text-white">
+            <div class="container mx-auto flex justify-between items-center">
+                <h1 class="text-2xl md:text-3xl font-bold">HealthySwap</h1>
+                <nav>
+                    <a href="#" class="mx-2 hover:text-blue-200">About</a>
+                    <a href="#" class="mx-2 hover:text-blue-200">Contact</a>
+                </nav>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="container mx-auto px-4 py-8">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl md:text-4xl font-bold text-gray-800 mb-4">Find Healthier Food Alternatives</h2>
+                <p class="text-gray-600">Upload an image, scan a barcode, or enter food details to get healthy alternatives</p>
+            </div>
+
+            <!-- Input Section -->
+            <div class="max-w-2xl mx-auto bg-white rounded-lg shadow-lg p-6 mb-8">
+                <div class="grid grid-cols-1 gap-6">
+                    <div class="space-y-4">
+                        <input type="text" id="foodName" placeholder="Enter food name" class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400">
+                        
+                        <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                            <input type="file" id="foodImage" accept="image/*" class="hidden">
+                            <label for="foodImage" class="cursor-pointer">
+                                <i class="bi bi-cloud-upload text-4xl text-gray-400"></i>
+                                <p class="mt-2">Click to upload image or drag and drop</p>
+                            </label>
+                            <img id="preview" class="mt-4 mx-auto max-h-48 hidden">
+                        </div>
+
+                        <button onclick="analyzeFood()" class="w-full bg-blue-500 text-white py-3 rounded-lg hover:bg-blue-600 transition duration-300">
+                            Analyze Food
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Results Section -->
+            <div id="results" class="hidden">
+                <h3 class="text-2xl font-semibold mb-6">Analysis Results</h3>
+                
+                <!-- Nutrition Info -->
+                <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
+                    <h4 class="text-xl font-semibold mb-4">Nutrition Information</h4>
+                    <div id="nutritionInfo" class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <!-- Filled dynamically -->
+                    </div>
+                </div>
+
+                <!-- Alternatives -->
+                <div class="space-y-8">
+                    <div class="alternatives-section">
+                        <h4 class="text-xl font-semibold mb-4">Budget-Friendly Alternatives</h4>
+                        <div id="budgetAlternatives" class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <!-- Filled dynamically -->
+                        </div>
+                    </div>
+
+                    <div class="alternatives-section">
+                        <h4 class="text-xl font-semibold mb-4">Similar Price Range Alternatives</h4>
+                        <div id="similarAlternatives" class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <!-- Filled dynamically -->
+                        </div>
+                    </div>
+
+                    <div class="alternatives-section">
+                        <h4 class="text-xl font-semibold mb-4">Premium Alternatives</h4>
+                        <div id="premiumAlternatives" class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <!-- Filled dynamically -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Preview uploaded image
+        document.getElementById('foodImage').addEventListener('change', function(e) {
+            const preview = document.getElementById('preview');
+            const file = e.target.files[0];
+            if (file) {
+                preview.src = URL.createObjectURL(file);
+                preview.classList.remove('hidden');
+            }
+        });
+
+        // Mock data for demonstration
+        const mockNutritionData = {
+            calories: 250,
+            protein: "8g",
+            carbs: "30g",
+            fat: "12g"
+        };
+
+        const mockAlternatives = {
+            budget: [
+                { name: "Quinoa Bowl", calories: 220, price: "$8.99", image: "https://images.unsplash.com/photo-1505576399279-565b52d4ac71?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=60" },
+                { name: "Lentil Curry", calories: 200, price: "$7.99", image: "https://images.unsplash.com/photo-1455619452474-d2be8b1e70cd?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=60" },
+                { name: "Bean Burrito", calories: 280, price: "$6.99", image: "https://images.unsplash.com/photo-1464219222984-216ebffaaf85?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=60" }
+            ],
+            similar: [
+                { name: "Grilled Chicken Salad", calories: 300, price: "$12.99", image: "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=60" },
+                { name: "Salmon Bowl", calories: 350, price: "$13.99", image: "https://images.unsplash.com/photo-1467003909585-2f8a72700288?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=60" },
+                { name: "Tofu Stir-Fry", calories: 280, price: "$11.99", image: "https://images.unsplash.com/photo-1512058556646-c4da40fba323?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=60" }
+            ],
+            premium: [
+                { name: "Organic Açai Bowl", calories: 400, price: "$16.99", image: "https://images.unsplash.com/photo-1490323914169-4d521debddb5?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=60" },
+                { name: "Wild-caught Tuna Poké", calories: 320, price: "$18.99", image: "https://images.unsplash.com/photo-1504674900247-0877df9cc836?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=60" },
+                { name: "Grass-fed Steak Bowl", calories: 450, price: "$20.99", image: "https://images.unsplash.com/photo-1432139509613-5c4255815697?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=60" }
+            ]
+        };
+
+        function analyzeFood() {
+            document.getElementById('results').classList.remove('hidden');
+            
+            // Display nutrition info
+            const nutritionInfo = document.getElementById('nutritionInfo');
+            nutritionInfo.innerHTML = `
+                <div class="text-center p-4 bg-gray-50 rounded-lg">
+                    <p class="text-2xl font-bold text-blue-500">${mockNutritionData.calories}</p>
+                    <p class="text-gray-600">Calories</p>
+                </div>
+                <div class="text-center p-4 bg-gray-50 rounded-lg">
+                    <p class="text-2xl font-bold text-blue-500">${mockNutritionData.protein}</p>
+                    <p class="text-gray-600">Protein</p>
+                </div>
+                <div class="text-center p-4 bg-gray-50 rounded-lg">
+                    <p class="text-2xl font-bold text-blue-500">${mockNutritionData.carbs}</p>
+                    <p class="text-gray-600">Carbs</p>
+                </div>
+                <div class="text-center p-4 bg-gray-50 rounded-lg">
+                    <p class="text-2xl font-bold text-blue-500">${mockNutritionData.fat}</p>
+                    <p class="text-gray-600">Fat</p>
+                </div>
+            `;
+
+            // Display alternatives
+            displayAlternatives('budgetAlternatives', mockAlternatives.budget);
+            displayAlternatives('similarAlternatives', mockAlternatives.similar);
+            displayAlternatives('premiumAlternatives', mockAlternatives.premium);
+        }
+
+        function displayAlternatives(elementId, alternatives) {
+            const container = document.getElementById(elementId);
+            container.innerHTML = alternatives.map(item => `
+                <div class="bg-white rounded-lg shadow-lg overflow-hidden card-hover">
+                    <img src="${item.image}" alt="${item.name}" class="w-full h-48 object-cover">
+                    <div class="p-4">
+                        <h5 class="font-semibold text-lg mb-2">${item.name}</h5>
+                        <p class="text-gray-600">${item.calories} calories</p>
+                        <p class="text-blue-500 font-bold mt-2">${item.price}</p>
+                        <button class="mt-4 w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600 transition duration-300">
+                            Buy Now
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+    </script>
+<script>document.body.addEventListener('wheel', e => { if (!e.ctrlKey) return; e.preventDefault(); return }, { passive: false })</script>
+	</body>
+</html>
